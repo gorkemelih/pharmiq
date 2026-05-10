@@ -1,0 +1,74 @@
+{
+  "common": {
+    "appName": "PharmIQ",
+    "tagline": "Multilingual, MLR-Compliant, Citation-Grounded AI Assistant for Pharma",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "search": "Search"
+  },
+  "nav": {
+    "newChat": "New Chat",
+    "history": "History",
+    "library": "My Library",
+    "settings": "Settings",
+    "logout": "Sign out",
+    "language": "Language"
+  },
+  "auth": {
+    "loginTitle": "Sign in with your organization",
+    "loginSubtitle": "Use your enterprise account to continue to PharmIQ",
+    "ssoButton": "Sign in with Microsoft SSO",
+    "ssoButtonAlt": "Sign in with SAML SSO",
+    "emailLogin": "Sign in with email",
+    "demoNote": "Demo mode: Mock SSO active"
+  },
+  "chat": {
+    "newChatTitle": "New Chat",
+    "welcome": "Smart assistant for the pharmaceutical industry.",
+    "welcomeSubtitle": "Ask in Turkish or English.",
+    "sampleQueriesTitle": "Sample questions:",
+    "sampleQ1": "Summarize the latest meta-analyses on ramipril's effect on diabetic nephropathy.",
+    "sampleQ2": "Compare pasireotide and metyrapone for Cushing's syndrome.",
+    "sampleQ3": "What does the 2025 ASCO guideline say about bevacizumab efficacy in glioblastoma?",
+    "inputPlaceholder": "Type your question...",
+    "send": "Send",
+    "searchInternal": "Search my organization's documents",
+    "searchPubMed": "Search PubMed/EMA/CT.gov",
+    "preMlrDraft": "Pre-MLR Draft",
+    "preMlrDraftTooltip": "This answer requires MLR approval before promotional use.",
+    "offLabelDetected": "Off-label Claim Detected",
+    "offLabelDescription": "The response may contain a use beyond the approved indication. MLR approval is required.",
+    "sourcesTitle": "Sources",
+    "sourcesEmpty": "Sources will appear here after you start a query.",
+    "openSource": "Open source",
+    "phaseUnderstanding": "Understanding query...",
+    "phaseRetrieving": "Retrieving sources...",
+    "phaseGenerating": "Generating answer..."
+  },
+  "library": {
+    "title": "My Library",
+    "uploadButton": "Upload Document",
+    "importPubMed": "Import from PubMed",
+    "allLanguages": "All Languages",
+    "totalStats": "{count} documents · {chunks} chunks · {size}",
+    "empty": "No documents uploaded yet",
+    "emptyDescription": "Start by uploading your organization's SmPCs, study reports, or papers",
+    "statusReady": "Ready",
+    "statusProcessing": "Processing",
+    "statusFailed": "Failed",
+    "statusPending": "Pending",
+    "preview": "Preview",
+    "download": "Download",
+    "delete": "Delete",
+    "uploadDropzone": "Drop a PDF here or click to select",
+    "uploadFormat": "PDF, DOCX (max. 100 MB)"
+  },
+  "watermark": {
+    "draft": "Pre-MLR Draft",
+    "tooltip": "This output is a draft. MLR (Medical-Legal-Regulatory) approval is required for promotional use."
+  }
+}

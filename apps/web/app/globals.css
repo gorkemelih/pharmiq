@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* PharmIQ — Clinical Light Theme
+       Plan §10.2: "Pharma'ya ait beyaz/mavi/yeşil paleti (sterilite hissi)"
+       Background: pure clinical white
+       Primary: deep medical blue (trust + competence)
+       Accent: subtle clinical green (safety + go-ahead)
+       Destructive: bright warning red for off-label flags */
+
+    --background: 0 0% 100%;
+    --foreground: 215 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 12%;
+
+    --primary: 211 100% 36%;        /* #0066B2 medical blue */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 215 25% 12%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 94%;
+    --accent-foreground: 215 25% 12%;
+
+    --destructive: 0 84% 50%;       /* off-label red */
+    --destructive-foreground: 0 0% 100%;
+
+    --clinical: 158 64% 42%;        /* #10B981 clinical green */
+    --clinical-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;          /* MLR draft amber */
+    --warning-foreground: 215 25% 12%;
+
+    --border: 215 20% 90%;
+    --input: 215 20% 90%;
+    --ring: 211 100% 36%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* PharmIQ — Clinical Dark Theme
+       Subtle deep navy, not pure black (pharma offices use bright screens) */
+
+    --background: 215 28% 8%;
+    --foreground: 210 20% 96%;
+
+    --card: 215 28% 11%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 215 28% 11%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 211 92% 60%;
+    --primary-foreground: 215 28% 8%;
+
+    --secondary: 215 25% 16%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 215 25% 16%;
+    --muted-foreground: 215 16% 65%;
+
+    --accent: 215 25% 18%;
+    --accent-foreground: 210 20% 96%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 210 20% 96%;
+
+    --clinical: 158 64% 50%;
+    --clinical-foreground: 215 28% 8%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 215 28% 8%;
+
+    --border: 215 25% 20%;
+    --input: 215 25% 20%;
+    --ring: 211 92% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  /* Clinical UI: subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+}
+
+@layer components {
+  /* Citation chip styling */
+  .citation-chip {
+    @apply inline-flex items-center justify-center min-w-5 h-5 px-1.5
+           rounded-md bg-primary/10 text-primary text-xs font-medium
+           hover:bg-primary/20 cursor-pointer transition-colors
+           align-super -translate-y-0.5;
+  }
+
+  /* MLR watermark band */
+  .mlr-watermark {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded
+           bg-warning/10 text-warning-foreground border border-warning/30
+           text-xs font-medium;
+  }
+
+  /* Off-label warning */
+  .off-label-banner {
+    @apply flex items-start gap-2 p-3 rounded-md
+           bg-destructive/10 border border-destructive/30
+           text-destructive text-sm;
+  }
+}

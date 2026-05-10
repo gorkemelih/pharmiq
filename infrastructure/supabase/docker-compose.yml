@@ -1,0 +1,49 @@
+# PharmIQ — Local Postgres + pgvector for demo
+#
+# Demo'da tam Supabase stack (auth/storage/realtime) gerekmez —
+# sadece Postgres + pgvector yeterli. Auth/storage'ı app içinde
+# basit dosya/cookie ile çözüyoruz.
+#
+# Production'da Supabase Cloud'a geçilir (plan §6.1).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pharmiq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: "--locale=tr_TR.UTF-8 --encoding=UTF-8"
+      LANG: tr_TR.UTF-8
+    ports:
+      - "54322:5432"
+    volumes:
+      - pharmiq_postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Studio (opsiyonel, GUI ile DB'ye bakmak için)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pharmiq-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pharmiq.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "54323:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+
+volumes:
+  pharmiq_postgres_data:

@@ -1,0 +1,23 @@
+{
+  "name": "pharmiq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PharmIQ — Pharma Vertical RAG Platform (Demo)",
+  "scripts": {
+    "dev": "pnpm --filter @pharmiq/web dev",
+    "build": "pnpm --filter @pharmiq/web build",
+    "start": "pnpm --filter @pharmiq/web start",
+    "lint": "pnpm --filter @pharmiq/web lint",
+    "db:up": "docker compose -f infrastructure/supabase/docker-compose.yml up -d",
+    "db:down": "docker compose -f infrastructure/supabase/docker-compose.yml down",
+    "db:reset": "docker compose -f infrastructure/supabase/docker-compose.yml down -v && pnpm db:up",
+    "db:migrate": "pnpm --filter @pharmiq/web db:migrate",
+    "db:studio": "pnpm --filter @pharmiq/web db:studio",
+    "seed": "pnpm --filter @pharmiq/web seed"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@11.0.8"
+}

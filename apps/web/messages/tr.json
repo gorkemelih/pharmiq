@@ -1,0 +1,74 @@
+{
+  "common": {
+    "appName": "PharmIQ",
+    "tagline": "İlaç Sektörü için Çoklu Dilli, MLR-Uyumlu, Kaynak-Gösterimli AI Yardımcısı",
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "retry": "Tekrar dene",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "delete": "Sil",
+    "search": "Ara"
+  },
+  "nav": {
+    "newChat": "Yeni Sohbet",
+    "history": "Geçmiş",
+    "library": "Kütüphanem",
+    "settings": "Ayarlar",
+    "logout": "Çıkış",
+    "language": "Dil"
+  },
+  "auth": {
+    "loginTitle": "Şirketinizle giriş yapın",
+    "loginSubtitle": "PharmIQ'ya devam etmek için kurumsal hesabınızı kullanın",
+    "ssoButton": "Microsoft SSO ile Giriş",
+    "ssoButtonAlt": "SAML SSO ile Giriş",
+    "emailLogin": "Email ile giriş",
+    "demoNote": "Demo modu: Mock SSO aktif"
+  },
+  "chat": {
+    "newChatTitle": "Yeni Sohbet",
+    "welcome": "Pharma sektörü için akıllı yardımcı.",
+    "welcomeSubtitle": "Türkçe veya İngilizce sorabilirsiniz.",
+    "sampleQueriesTitle": "Örnek sorular:",
+    "sampleQ1": "Ramipril'in diyabetik nefropati üzerindeki etkisine dair son meta-analizleri özetler misin?",
+    "sampleQ2": "Cushing sendromu için pasireotid ve metyrapon karşılaştırması?",
+    "sampleQ3": "Bevacizumab'ın glioblastomada etkinliği üzerine 2025 ASCO rehberi ne diyor?",
+    "inputPlaceholder": "Sorunuzu yazın...",
+    "send": "Gönder",
+    "searchInternal": "Şirket dokümanlarımda ara",
+    "searchPubMed": "PubMed/EMA/CT.gov'da ara",
+    "preMlrDraft": "Pre-MLR Draft",
+    "preMlrDraftTooltip": "Bu yanıt promosyonel kullanım için MLR onayı gerektirir.",
+    "offLabelDetected": "Off-label İddia Tespit Edildi",
+    "offLabelDescription": "Cevap onaylı endikasyon dışı bir kullanım iddiası içerebilir. MLR onayı zorunludur.",
+    "sourcesTitle": "Kaynaklar",
+    "sourcesEmpty": "Sorgu başlattıktan sonra kaynaklar burada görünecek.",
+    "openSource": "Kaynağa git",
+    "phaseUnderstanding": "Sorgu anlaşılıyor...",
+    "phaseRetrieving": "Kaynaklar aranıyor...",
+    "phaseGenerating": "Yanıt üretiliyor..."
+  },
+  "library": {
+    "title": "Kütüphanem",
+    "uploadButton": "Doküman Yükle",
+    "importPubMed": "PubMed'den Aktar",
+    "allLanguages": "Tüm Diller",
+    "totalStats": "{count} doküman · {chunks} chunk · {size}",
+    "empty": "Henüz doküman yüklenmemiş",
+    "emptyDescription": "Şirketinizin SmPC, çalışma raporu veya makalelerini yükleyerek başlayın",
+    "statusReady": "Hazır",
+    "statusProcessing": "İşleniyor",
+    "statusFailed": "Başarısız",
+    "statusPending": "Beklemede",
+    "preview": "Önizleme",
+    "download": "İndir",
+    "delete": "Sil",
+    "uploadDropzone": "Buraya PDF dosyasını sürükleyin veya tıklayın",
+    "uploadFormat": "PDF, DOCX (maks. 100 MB)"
+  },
+  "watermark": {
+    "draft": "Pre-MLR Draft",
+    "tooltip": "Bu çıktı taslaktır. Promosyonel kullanım için MLR (Medical-Legal-Regulatory) onayı gerekir."
+  }
+}
