@@ -40,6 +40,9 @@ test-results/
 infrastructure/supabase/volumes/
 supabase/.temp/
 
+# User-uploaded files (demo localhost storage)
+apps/web/storage/
+
 # Local cache
 .cache/
 .turbo/

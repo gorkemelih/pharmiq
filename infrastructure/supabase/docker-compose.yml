@@ -15,8 +15,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
-      POSTGRES_INITDB_ARGS: "--locale=tr_TR.UTF-8 --encoding=UTF-8"
-      LANG: tr_TR.UTF-8
+      # NOTE: Türkçe text search için locale gerekmez — Postgres'in built-in
+      # 'turkish' text search config'i (snowball stemmer) zaten gömülü.
+      # Locale sadece string ORDER BY / LIKE collation'ını etkiler, FTS'yi değil.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     ports:
       - "54322:5432"
     volumes:
