@@ -8,7 +8,7 @@
  * 1. Parser'dan gelen paragraf'ları base unit olarak kullan.
  * 2. Çok uzun paragrafları cümle bazında böl.
  * 3. Komşu kısa paragrafları (örn. başlık + ilk cümle) birleştir.
- * 4. Her chunk ~256-512 token (Cohere v3 limit 512 token).
+ * 4. Her chunk ~256-512 token — küçük chunk = daha isabetli retrieval (~384 tatlı nokta).
  *
  * Token tahmini: Türkçe ortalama ~3 karakter/token (İngilizce ~4).
  */
@@ -28,7 +28,7 @@ export interface Chunk {
 export interface ChunkingOptions {
   /** Hedef chunk token sayısı (varsayılan 384) */
   targetTokens?: number;
-  /** Maksimum chunk token sayısı (Cohere v3 limit 512) */
+  /** Maksimum chunk token sayısı (retrieval granülaritesi için ~512 üst sınır) */
   maxTokens?: number;
   /** Minimum chunk token sayısı (çok küçük chunk birleştirilsin) */
   minTokens?: number;
@@ -36,7 +36,7 @@ export interface ChunkingOptions {
 
 const DEFAULT_OPTIONS: Required<ChunkingOptions> = {
   targetTokens: 384,
-  maxTokens: 480, // Cohere v3 hard limit 512 — buffer için 480
+  maxTokens: 480, // ~512 hedef üst sınır; güvenlik payı için 480
   minTokens: 80,
 };
 

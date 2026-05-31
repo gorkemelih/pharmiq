@@ -1,10 +1,12 @@
 /**
  * PharmIQ — Embedding Pipeline
  *
- * Chunk listesini alıp Cohere Embed v3 (GitHub Models) ile 1024-dim
- * vector'lara dönüştürür. Plan §5.3 Step 2 (embedding generation).
+ * Chunk listesini alıp Gemini embedding-001 ile 1024-dim vector'lara
+ * dönüştürür (Google AI Studio ücretsiz tier). Plan §5.3 Step 2.
+ * NOT: Plan Cohere embed-v3 hedefliyor; GitHub Models PAT 403 verdiği için
+ * şimdilik Gemini. Cohere = production upgrade (bkz. docs/proje1-mvp-plan.md).
  *
- * - Automatik batching (Cohere v3 batch limit 96).
+ * - Otomatik batching (embedder.maxBatchSize'a göre).
  * - Rate limit toleransı: 429 alırsa exponential backoff.
  * - Tek bir hata tüm batch'i öldürmesin diye batch-by-batch çağrı.
  */
@@ -20,7 +22,7 @@ export interface EmbeddedChunk extends Chunk {
 }
 
 export interface EmbedOptions {
-  /** Override batch size (default 64, max 96 for Cohere v3) */
+  /** Override batch size (default 64; embedder.maxBatchSize ile sınırlanır) */
   batchSize?: number;
   /** Override embedder (test/mock için) */
   embedder?: EmbeddingProvider;

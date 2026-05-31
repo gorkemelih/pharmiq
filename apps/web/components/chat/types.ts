@@ -3,6 +3,8 @@
  * /api/chat route'taki messageMetadata callback ile eşleşir.
  */
 
+import type { CitationValidation } from "@/lib/llm/citations";
+
 export interface Citation {
   n: number;
   chunkId: string;
@@ -19,4 +21,8 @@ export interface MessageMetadata {
   retrievedChunkCount?: number;
   citations?: Citation[];
   language?: "tr" | "en";
+  /** Cevaptaki [^N] atıflarının doğrulama sonucu (server üretir). */
+  citationValidation?: CitationValidation;
+  /** Retrieval 0 chunk döndürdüyse: model çağrılmadı, sabit "kaynak yok" yanıtı. */
+  noSources?: boolean;
 }

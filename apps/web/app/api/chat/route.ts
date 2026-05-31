@@ -5,18 +5,29 @@
  * Flow:
  *   1. Son user mesajını al
  *   2. Hybrid retrieval → top 10 chunk
- *   3. Türkçe/İngilizce sistem promptu + chunks → context
- *   4. streamText (Gemini 3 Flash)
- *   5. UIMessageStreamResponse — client useChat hook'u bunu okur
+ *   3. 0-chunk guard: kaynak yoksa modeli ÇAĞIRMA (halüsinasyon imkânsız)
+ *   4. Türkçe/İngilizce sistem promptu + chunks → context
+ *   5. streamText (Gemini 3 Flash) → text delta'larını elle akıt
+ *   6. Tam metin oluşunca [^N] atıflarını doğrula → 'finish' metadata'sına ekle
+ *   7. UIMessageStreamResponse — client useChat hook'u bunu okur
  *
- * Citations: chunk metadata stream data part olarak gönderilir,
- * client'ta sağ panel ve [^N] chip'leri için kullanılır.
+ * NOT (öğrenme): streamText.onFinish ile finish-metadata'nın SIRASI garanti
+ * değil (denedik, doğrulama metadata'ya düşmedi). Bu yüzden createUIMessageStream
+ * ile akışı elle yönetiyoruz: text bitince doğrulayıp 'finish'i biz yazıyoruz.
+ *
+ * Citations: chunk metadata 'start'ta gönderilir (sağ panel + [^N] chip'leri).
+ * Doğrulama: [^N]'ler chunk kümesine karşı denetlenir (bkz. lib/llm/citations.ts).
  */
 
 import type { UIMessage } from "ai";
-import { convertToModelMessages } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+} from "ai";
 import { retrieve } from "@/lib/rag/retrieval";
 import { streamChat } from "@/lib/llm/chat";
+import { validateCitations } from "@/lib/llm/citations";
 import {
   SYSTEM_PROMPT_TR,
   SYSTEM_PROMPT_EN,
@@ -60,45 +71,76 @@ export async function POST(req: Request) {
       documentIds,
     });
 
-    // 2. System + user prompt (kaynaklar gömülmüş)
+    // 2. 0-chunk guard — kaynak yoksa modeli HİÇ çağırma.
+    // Aksi halde model parametrik hafızasından "uydurabilir" (MLR'de kabul edilemez).
+    if (chunks.length === 0) {
+      return noSourcesResponse(language);
+    }
+
+    // 3. Citation metadata'sı: her chunk numaralı (UI chip + kaynak paneli için)
+    const citations = chunks.map((c, i) => ({
+      n: i + 1,
+      chunkId: c.chunkId,
+      documentId: c.documentId,
+      documentTitle: c.documentTitle,
+      pageNumber: c.pageNumber,
+      sectionPath: c.sectionPath,
+      score: c.score,
+      contentPreview: c.content.slice(0, 240),
+    }));
+
+    // 4. System + user prompt (kaynaklar gömülmüş)
     const systemPrompt = language === "tr" ? SYSTEM_PROMPT_TR : SYSTEM_PROMPT_EN;
     const userPromptWithContext = buildUserPrompt(query, chunks, language);
 
-    // Önceki mesajlar (history) + son user mesajının ContextWithSources versiyonu
-    // Burada basit yaklaşım: tüm history'yi koruyup, son user mesajını contextli hale getiriyoruz.
+    // Önceki history korunur; son user mesajı context'li versiyonuyla değiştirilir.
     const augmentedMessages = messages.slice(0, -1).concat([
       {
         ...lastUserMsg,
         parts: [{ type: "text", text: userPromptWithContext }],
       },
     ]) as UIMessage[];
-
-    // 3. Stream
     const modelMessages = await convertToModelMessages(augmentedMessages);
-    const { provider, result } = streamChat({
-      messages: modelMessages,
-      system: systemPrompt,
+
+    // 5+6. Akışı elle yönet: text delta'larını akıt, tam metin oluşunca doğrula.
+    const stream = createUIMessageStream({
+      onError: (e) => (e instanceof Error ? e.message : "stream error"),
+      execute: async ({ writer }) => {
+        const { provider, result } = streamChat({
+          messages: modelMessages,
+          system: systemPrompt,
+        });
+
+        const base = {
+          provider,
+          retrievedChunkCount: chunks.length,
+          citations,
+          language,
+        };
+
+        const id = "answer";
+        // 'start'ta citations'ı yolla (önden bilinir → UI kaynak panelini hemen kurar)
+        writer.write({ type: "start", messageMetadata: base });
+        writer.write({ type: "text-start", id });
+
+        // Model'in token'larını akıt + tam metni biriktir
+        let fullText = "";
+        for await (const delta of result.textStream) {
+          fullText += delta;
+          writer.write({ type: "text-delta", id, delta });
+        }
+        writer.write({ type: "text-end", id });
+
+        // Artık tam metin elimizde → [^N] atıflarını chunk kümesine karşı doğrula
+        const citationValidation = validateCitations(fullText, chunks.length);
+        writer.write({
+          type: "finish",
+          messageMetadata: { ...base, citationValidation },
+        });
+      },
     });
 
-    // 4. UI Message Stream Response — useChat hook tarafından okunur
-    return result.toUIMessageStreamResponse({
-      // Citations'ı stream data part olarak gönder
-      messageMetadata: () => ({
-        provider,
-        retrievedChunkCount: chunks.length,
-        citations: chunks.map((c, i) => ({
-          n: i + 1,
-          chunkId: c.chunkId,
-          documentId: c.documentId,
-          documentTitle: c.documentTitle,
-          pageNumber: c.pageNumber,
-          sectionPath: c.sectionPath,
-          score: c.score,
-          contentPreview: c.content.slice(0, 240),
-        })),
-        language,
-      }),
-    });
+    return createUIMessageStreamResponse({ stream });
   } catch (err) {
     console.error("[POST /api/chat]", err);
     return new Response(
@@ -108,6 +150,39 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Retrieval 0 chunk döndürdüğünde: modeli çağırmadan sabit "kaynak yok" yanıtı stream'le.
+ * createUIMessageStream ile UI message chunk'larını elle yazıyoruz (LLM yok = sıfır halüsinasyon).
+ */
+function noSourcesResponse(language: "tr" | "en"): Response {
+  const message =
+    language === "tr"
+      ? "Bu konuda sağlanan kaynaklarda yeterli bilgi yok. Lütfen soruyu daha spesifik sorun ya da ilgili belgeyi kütüphaneye yükleyin."
+      : "The provided sources don't contain enough information on this topic. Please ask a more specific question or upload the relevant document.";
+
+  const stream = createUIMessageStream({
+    execute: ({ writer }) => {
+      const id = "no-sources";
+      writer.write({
+        type: "start",
+        messageMetadata: {
+          provider: "none",
+          retrievedChunkCount: 0,
+          citations: [],
+          language,
+          noSources: true,
+        },
+      });
+      writer.write({ type: "text-start", id });
+      writer.write({ type: "text-delta", id, delta: message });
+      writer.write({ type: "text-end", id });
+      writer.write({ type: "finish" });
+    },
+  });
+
+  return createUIMessageStreamResponse({ stream });
 }
 
 function extractText(msg: UIMessage): string {
