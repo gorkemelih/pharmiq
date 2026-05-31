@@ -98,8 +98,13 @@ async function vectorSearch(
   // pgvector cosine distance: 0 (identical) → 2 (opposite)
   // Similarity'ye çevir: 1 - distance (yüksek = daha benzer)
   const vectorLiteral = `[${embedding.join(",")}]`;
+  // NOT: ANY(${array}) drizzle+postgres'te bozuk array literal üretiyordu (22P02).
+  // Her id'yi ayrı param yapıp ARRAY[...]::uuid[] olarak bind ediyoruz.
   const docFilter = opts.documentIds?.length
-    ? sql`AND c.document_id = ANY(${opts.documentIds})`
+    ? sql`AND c.document_id = ANY(ARRAY[${sql.join(
+        opts.documentIds.map((id) => sql`${id}`),
+        sql`, `
+      )}]::uuid[])`
     : sql``;
 
   const result = await db.execute<RawRow>(sql`
@@ -132,8 +137,13 @@ async function keywordSearch(
   // Postgres FTS: turkish dictionary (snowball stemmer)
   // ts_rank_cd: cover density ranking (kelime yakınlığına önem verir)
   // plainto_tsquery: doğal dil query'yi tsquery'ye çevirir, AND'le
+  // NOT: ANY(${array}) drizzle+postgres'te bozuk array literal üretiyordu (22P02).
+  // Her id'yi ayrı param yapıp ARRAY[...]::uuid[] olarak bind ediyoruz.
   const docFilter = opts.documentIds?.length
-    ? sql`AND c.document_id = ANY(${opts.documentIds})`
+    ? sql`AND c.document_id = ANY(ARRAY[${sql.join(
+        opts.documentIds.map((id) => sql`${id}`),
+        sql`, `
+      )}]::uuid[])`
     : sql``;
 
   const result = await db.execute<RawRow>(sql`
