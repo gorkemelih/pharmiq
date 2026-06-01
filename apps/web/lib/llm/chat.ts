@@ -71,6 +71,28 @@ function buildGitHubProvider(): ChatProvider {
   };
 }
 
+function buildGroqProvider(): ChatProvider {
+  // Groq = açık modelleri (Llama vb.) ÜCRETSİZ + çok hızlı koşturan servis.
+  // OpenAI-uyumlu API → createOpenAICompatible. Generation'ı buraya alıp
+  // Gemini free-tier kotasını koruyoruz. Model env ile seçilir (GROQ_MODEL).
+  const apiKey = process.env.GROQ_API_KEY;
+  const modelId = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+  if (!apiKey) {
+    return { name: "groq", label: `Groq · ${modelId}`, isConfigured: false, model: null };
+  }
+  const provider = createOpenAICompatible({
+    name: "groq",
+    baseURL: "https://api.groq.com/openai/v1",
+    apiKey,
+  });
+  return {
+    name: "groq",
+    label: `Groq · ${modelId}`,
+    isConfigured: true,
+    model: provider(modelId),
+  };
+}
+
 // =============================================================================
 // Provider chain + fallback
 // =============================================================================
@@ -79,12 +101,15 @@ let _providers: ChatProvider[] | null = null;
 
 export function getConfiguredProviders(): ChatProvider[] {
   if (_providers) return _providers;
-  _providers = [buildGeminiProvider(), buildGitHubProvider()].filter(
-    (p) => p.isConfigured
-  );
+  // Öncelik: Groq (ücretsiz/hızlı) → Gemini → GitHub. İlk konfigüre olan kullanılır.
+  _providers = [
+    buildGroqProvider(),
+    buildGeminiProvider(),
+    buildGitHubProvider(),
+  ].filter((p) => p.isConfigured);
   if (_providers.length === 0) {
     throw new Error(
-      "No chat provider configured. Set GOOGLE_AI_API_KEY in .env.local"
+      "No chat provider configured. Set GROQ_API_KEY or GOOGLE_AI_API_KEY in .env.local"
     );
   }
   return _providers;
