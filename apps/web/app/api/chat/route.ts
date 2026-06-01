@@ -26,6 +26,7 @@ import {
   createUIMessageStreamResponse,
 } from "ai";
 import { retrieve } from "@/lib/rag/retrieval";
+import { rerankChunks } from "@/lib/rag/rerank";
 import { streamChat } from "@/lib/llm/chat";
 import { validateCitations } from "@/lib/llm/citations";
 import {
@@ -65,17 +66,19 @@ export async function POST(req: Request) {
     const query = extractText(lastUserMsg);
     const language = detectQueryLanguage(query);
 
-    // 1. Retrieval
-    const chunks = await retrieve(query, {
-      topK: 10,
+    // 1. Retrieval — geniş aday havuzu (RRF top-20)
+    const candidates = await retrieve(query, {
+      topK: 20,
       documentIds,
     });
 
-    // 2. 0-chunk guard — kaynak yoksa modeli HİÇ çağırma.
-    // Aksi halde model parametrik hafızasından "uydurabilir" (MLR'de kabul edilemez).
-    if (chunks.length === 0) {
+    // 0-chunk guard — kaynak yoksa modeli HİÇ çağırma (MLR: halüsinasyon imkânsız).
+    if (candidates.length === 0) {
       return noSourcesResponse(language);
     }
+
+    // 2. Rerank — adayları alakaya göre yeniden sırala, en iyi 6 (Groq; yoksa RRF sırası)
+    const chunks = await rerankChunks(query, candidates, 6);
 
     // 3. Citation metadata'sı: her chunk numaralı (UI chip + kaynak paneli için)
     const citations = chunks.map((c, i) => ({
