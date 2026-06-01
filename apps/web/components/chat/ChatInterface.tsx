@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./MessageBubble";
 import { SourcePanel } from "./SourcePanel";
 import { OffLabelWarning, type OffLabelInfo } from "./OffLabelWarning";
+import { CitationValidationBadge } from "./CitationValidationBadge";
 import type { Citation, MessageMetadata } from "./types";
 
 type OffLabelState = OffLabelInfo | "pending" | "skipped";
@@ -159,6 +160,19 @@ export function ChatInterface() {
                       {m.role === "assistant" && (
                         <>
                           <PreMlrWatermark t={t} />
+                          {(() => {
+                            const meta = m.metadata as
+                              | MessageMetadata
+                              | undefined;
+                            return meta?.citationValidation ? (
+                              <div>
+                                <CitationValidationBadge
+                                  validation={meta.citationValidation}
+                                  language={meta.language ?? "tr"}
+                                />
+                              </div>
+                            ) : null;
+                          })()}
                           {off &&
                             typeof off === "object" &&
                             "detected" in off && (
