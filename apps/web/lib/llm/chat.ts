@@ -115,6 +115,13 @@ export function getConfiguredProviders(): ChatProvider[] {
   return _providers;
 }
 
+/** Eval/yardımcı görevler için ilk konfigüre generation modeli (Groq → Gemini → GitHub). */
+export function getPrimaryModel(): LanguageModel {
+  const provider = getConfiguredProviders()[0];
+  if (!provider.model) throw new Error(`Provider ${provider.name} has no model`);
+  return provider.model;
+}
+
 export interface StreamChatOptions {
   messages: ModelMessage[];
   system: string;
