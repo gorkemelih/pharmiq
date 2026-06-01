@@ -12,10 +12,16 @@
  */
 
 import { getGeminiEmbedder } from "../llm/providers/gemini-embed";
+import { getOllamaEmbedder } from "../llm/providers/ollama-embed";
 import type { Chunk } from "./chunking";
 import type { EmbeddingProvider, ProviderError } from "../llm/types";
 
-const getDefaultEmbedder = getGeminiEmbedder;
+/** Env ile seç: EMBEDDING_PROVIDER=ollama (varsayılan, lokal/ücretsiz) | gemini */
+function getDefaultEmbedder(): EmbeddingProvider {
+  return (process.env.EMBEDDING_PROVIDER ?? "ollama").toLowerCase() === "gemini"
+    ? getGeminiEmbedder()
+    : getOllamaEmbedder();
+}
 
 export interface EmbeddedChunk extends Chunk {
   embedding: number[];

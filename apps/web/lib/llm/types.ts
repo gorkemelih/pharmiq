@@ -14,7 +14,8 @@ export type ProviderName =
 
 export type EmbeddingProviderName =
   | "github-cohere-embed-v3-multilingual"
-  | "github-cohere-embed-v3-english";
+  | "github-cohere-embed-v3-english"
+  | "ollama-bge-m3";
 
 export interface EmbeddingInput {
   texts: string[];
