@@ -11,6 +11,7 @@
 import { parsePdf } from "../pdf/parser";
 import { chunkDocument } from "./chunking";
 import { embedChunks } from "./embedding";
+import { contextualizeChunks, buildEmbedText } from "./contextual";
 import { insertChunks, updateDocumentStatus } from "../db/queries";
 import type { NewChunk } from "../db/schema";
 
@@ -45,8 +46,19 @@ export async function ingestPdf(
       throw new Error("No chunks produced — PDF may be empty or image-only");
     }
 
-    // 3. Embed (batches of 64)
-    const embedded = await embedChunks(chunks, {
+    // 2.5 Contextualize — her chunk'a kısa bağlam ekle (embedding'i keskinleştirir)
+    const contextualized = await contextualizeChunks(parsed, chunks);
+    const withCtx = contextualized.filter((c) => c.contextHeader).length;
+    console.log(
+      `[ingest:${documentId}] Contextualized ${withCtx}/${chunks.length} chunks`
+    );
+
+    // 3. Embed — bağlam + içeriği göm, ama içeriği VERBATIM sakla (faithful citation)
+    const embedInput = contextualized.map((c) => ({
+      ...c.chunk,
+      content: buildEmbedText(c),
+    }));
+    const embedded = await embedChunks(embedInput, {
       onProgress: (done, total) => {
         if (done % 64 === 0 || done === total) {
           console.log(`[ingest:${documentId}] Embedded ${done}/${total}`);
@@ -54,10 +66,10 @@ export async function ingestPdf(
       },
     });
 
-    // 4. DB insert
+    // 4. DB insert — content = ORİJİNAL verbatim; embedding = contextualized metinden
     const rows: Omit<NewChunk, "tenantId" | "documentId">[] = embedded.map(
-      (c) => ({
-        content: c.content,
+      (c, i) => ({
+        content: chunks[i].content,
         language: c.language,
         pageNumber: c.pageNumber,
         paragraphIndex: c.paragraphIndex,
