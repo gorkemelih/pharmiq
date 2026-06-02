@@ -1,8 +1,12 @@
 [
-  { "id": "q1", "lang": "en", "question": "What is the Eligard Gen-AI project and which platform does it use?" },
-  { "id": "q2", "lang": "en", "question": "What are the two main aims of the Cushing's syndrome Gen-AI initiative?" },
-  { "id": "q3", "lang": "en", "question": "What governance challenges are mentioned for Gen-AI adoption?" },
-  { "id": "q4", "lang": "en", "question": "What is the role of Group ICT in the AI process?" },
-  { "id": "q5", "lang": "tr", "question": "Eligard projesinde hangi pazarlama kanallarıyla başlanıyor?" },
-  { "id": "q6", "lang": "tr", "question": "Gen-AI içerik üretiminin beklenen faydaları nelerdir?" }
+  { "id": "q1", "lang": "en", "question": "What is Entresto indicated for?" },
+  { "id": "q2", "lang": "en", "question": "What are common adverse reactions of sertraline hydrochloride?" },
+  { "id": "q3", "lang": "en", "question": "What is varenicline prescribed for?" },
+  { "id": "q4", "lang": "en", "question": "What are the contraindications for naproxen?" },
+  { "id": "q5", "lang": "en", "question": "What conditions is lacosamide used to treat?" },
+  { "id": "q6", "lang": "en", "question": "What is tamsulosin hydrochloride indicated for?" },
+  { "id": "q7", "lang": "en", "question": "How is glimepiride used in the management of type 2 diabetes?" },
+  { "id": "q8", "lang": "en", "question": "What serious boxed warning applies to amphetamine sulfate?" },
+  { "id": "q9", "lang": "en", "question": "What are key warnings and precautions for Mekinist?" },
+  { "id": "q10", "lang": "en", "question": "What is etodolac indicated for?" }
 ]

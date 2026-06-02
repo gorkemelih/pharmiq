@@ -77,8 +77,9 @@ export async function POST(req: Request) {
       return noSourcesResponse(language);
     }
 
-    // 2. Rerank — adayları alakaya göre yeniden sırala, en iyi 6 (Groq; yoksa RRF sırası)
-    const chunks = await rerankChunks(query, candidates, 6);
+    // 2. Rerank — adayları alakaya göre yeniden sırala, en iyi 4 (Groq; yoksa RRF sırası)
+    // (4 seçildi: eval'de 6 → çok distractor → düşük context_precision; ölç→iyileştir.)
+    const chunks = await rerankChunks(query, candidates, 4);
 
     // 3. Citation metadata'sı: her chunk numaralı (UI chip + kaynak paneli için)
     const citations = chunks.map((c, i) => ({

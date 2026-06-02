@@ -59,7 +59,7 @@ async function retry<T>(fn: () => Promise<T>, label: string, tries = 4): Promise
 async function answerFor(question: string) {
   const lang = detectQueryLanguage(question);
   const candidates = await retrieve(question, { topK: 20 });
-  const chunks = await rerankChunks(question, candidates, 6);
+  const chunks = await rerankChunks(question, candidates, 4);
   const system = lang === "tr" ? SYSTEM_PROMPT_TR : SYSTEM_PROMPT_EN;
   const prompt = buildUserPrompt(question, chunks, lang);
   const { text } = await retry(
