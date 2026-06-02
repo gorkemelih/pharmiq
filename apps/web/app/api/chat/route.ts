@@ -27,7 +27,7 @@ import {
 } from "ai";
 import { retrieve } from "@/lib/rag/retrieval";
 import { rerankChunks } from "@/lib/rag/rerank";
-import { streamChat } from "@/lib/llm/chat";
+import { getProviderChain, streamWithProvider } from "@/lib/llm/chat";
 import { validateCitations } from "@/lib/llm/citations";
 import {
   SYSTEM_PROMPT_TR,
@@ -110,36 +110,63 @@ export async function POST(req: Request) {
     const stream = createUIMessageStream({
       onError: (e) => (e instanceof Error ? e.message : "stream error"),
       execute: async ({ writer }) => {
-        const { provider, result } = streamChat({
-          messages: modelMessages,
-          system: systemPrompt,
-        });
-
-        const base = {
-          provider,
-          retrievedChunkCount: chunks.length,
-          citations,
-          language,
-        };
-
+        const providers = getProviderChain();
         const id = "answer";
-        // 'start'ta citations'ı yolla (önden bilinir → UI kaynak panelini hemen kurar)
-        writer.write({ type: "start", messageMetadata: base });
-        writer.write({ type: "text-start", id });
-
-        // Model'in token'larını akıt + tam metni biriktir
+        let started = false;
+        let usedProvider = "";
         let fullText = "";
-        for await (const delta of result.textStream) {
-          fullText += delta;
-          writer.write({ type: "text-delta", id, delta });
-        }
-        writer.write({ type: "text-end", id });
 
-        // Artık tam metin elimizde → [^N] atıflarını chunk kümesine karşı doğrula
+        // FAILOVER: ilk provider'ı dene; token ÜRETMEDEN hata verirse sıradakine geç.
+        // (Akış başladıktan sonra ortada provider değiştiremeyiz.)
+        for (const p of providers) {
+          try {
+            const result = streamWithProvider(p, {
+              messages: modelMessages,
+              system: systemPrompt,
+            });
+            for await (const delta of result.textStream) {
+              if (!started) {
+                started = true;
+                usedProvider = p.name;
+                // 'start'ta citations'ı yolla (UI kaynak panelini hemen kurar)
+                writer.write({
+                  type: "start",
+                  messageMetadata: {
+                    provider: p.name,
+                    retrievedChunkCount: chunks.length,
+                    citations,
+                    language,
+                  },
+                });
+                writer.write({ type: "text-start", id });
+              }
+              fullText += delta;
+              writer.write({ type: "text-delta", id, delta });
+            }
+            break; // bu provider başarıyla tamamladı
+          } catch (err) {
+            if (started) throw err; // akış başladı → güvenli geçiş yok
+            console.warn(
+              `[chat] ${p.name} başarısız, sıradaki provider'a geçiliyor:`,
+              err instanceof Error ? err.message.slice(0, 100) : err
+            );
+          }
+        }
+
+        if (!started) throw new Error("Tüm generation provider'ları başarısız");
+
+        writer.write({ type: "text-end", id });
+        // Tam metin elimizde → [^N] atıflarını chunk kümesine karşı doğrula
         const citationValidation = validateCitations(fullText, chunks.length);
         writer.write({
           type: "finish",
-          messageMetadata: { ...base, citationValidation },
+          messageMetadata: {
+            provider: usedProvider,
+            retrievedChunkCount: chunks.length,
+            citations,
+            language,
+            citationValidation,
+          },
         });
       },
     });

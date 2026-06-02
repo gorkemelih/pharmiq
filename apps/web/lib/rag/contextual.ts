@@ -13,8 +13,7 @@
  * graceful: bağlam boş kalır, yapısal chunking gibi davranır (ingest kırılmaz).
  */
 
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText } from "ai";
+import { generateTextWithFallback } from "../llm/chat";
 import type { ParsedDocument } from "../pdf/parser";
 import type { Chunk } from "./chunking";
 
@@ -24,15 +23,8 @@ export interface ContextualizedChunk {
   contextHeader: string;
 }
 
-const MODEL_ID = "models/gemini-flash-latest";
 const MAX_DOC_CHARS = 12000; // bağlam üretimi için belge metnini sınırla (maliyet)
-const MAX_CONCURRENCY = 4; // free tier'ı zorlamadan paralel üret
-
-function getModel() {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  if (!apiKey) return null;
-  return createGoogleGenerativeAI({ apiKey })(MODEL_ID);
-}
+const MAX_CONCURRENCY = 4; // sağlayıcıyı zorlamadan paralel üret
 
 /** Parsed belgeyi bağlam üretimi için düz metne indir (sınırlı uzunluk). */
 function docToText(doc: ParsedDocument): string {
@@ -83,23 +75,18 @@ export async function contextualizeChunks(
   doc: ParsedDocument,
   chunks: Chunk[]
 ): Promise<ContextualizedChunk[]> {
-  const model = getModel();
-  if (!model || chunks.length === 0) {
-    return chunks.map((chunk) => ({ chunk, contextHeader: "" }));
-  }
+  if (chunks.length === 0) return [];
 
   const docText = docToText(doc);
 
   return mapLimit(chunks, MAX_CONCURRENCY, async (chunk, idx) => {
     try {
-      const { text } = await generateText({
-        model,
+      const { text } = await generateTextWithFallback({
+        prompt: buildPrompt(docText, chunk.content),
         temperature: 0.1,
         maxOutputTokens: 256,
-        // Gemini 3 Flash'ın "thinking"i token bütçesini yiyip cevabı kesiyordu
-        // (+ kotayı şişiriyordu). Basit tek-cümle görev → thinking'i kapat.
+        // Gemini'nin "thinking"i token bütçesini yiyebilir → kapat (Groq'ta no-op).
         providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
-        prompt: buildPrompt(docText, chunk.content),
       });
       const header = text.trim().replace(/\s+/g, " ");
       if (idx < 2) {

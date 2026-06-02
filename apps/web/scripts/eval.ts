@@ -18,10 +18,9 @@ import { resolve } from "node:path";
 config({ path: resolve(__dirname, "..", ".env.local") });
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { generateText } from "ai";
 import { retrieve } from "../lib/rag/retrieval";
 import { rerankChunks } from "../lib/rag/rerank";
-import { getPrimaryModel } from "../lib/llm/chat";
+import { generateTextWithFallback } from "../lib/llm/chat";
 import {
   SYSTEM_PROMPT_TR,
   SYSTEM_PROMPT_EN,
@@ -64,12 +63,11 @@ async function answerFor(question: string) {
   const prompt = buildUserPrompt(question, chunks, lang);
   const { text } = await retry(
     () =>
-      generateText({
-        model: getPrimaryModel(),
+      generateTextWithFallback({
         system,
+        prompt,
         temperature: 0.2,
         maxOutputTokens: 1024,
-        prompt,
       }),
     "generate"
   );
@@ -80,8 +78,7 @@ async function answerFor(question: string) {
 async function judgeScore(task: string): Promise<number> {
   const { text } = await retry(
     () =>
-      generateText({
-        model: getPrimaryModel(),
+      generateTextWithFallback({
         temperature: 0,
         maxOutputTokens: 12,
         prompt: `${task}\n\nSADECE 0.0 ile 1.0 arası TEK bir ondalık sayı döndür (örn: 0.85). Başka hiçbir şey yazma.`,

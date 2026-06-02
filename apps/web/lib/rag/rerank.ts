@@ -13,22 +13,10 @@
  * fine-tune ettiğin küçük model) production upgrade'i — bkz. wiki [[rerank]].
  */
 
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText } from "ai";
+import { generateTextWithFallback } from "../llm/chat";
 import type { RetrievedChunk } from "./retrieval";
 
-const MODEL_ID = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
 const SNIPPET = 320; // her adaydan modele gösterilen metin (token sınırla)
-
-function getGroqModel() {
-  const key = process.env.GROQ_API_KEY;
-  if (!key) return null;
-  return createOpenAICompatible({
-    name: "groq",
-    baseURL: "https://api.groq.com/openai/v1",
-    apiKey: key,
-  })(MODEL_ID);
-}
 
 /**
  * Adayları alakaya göre yeniden sıralar, en iyi `topK`'yı döndürür.
@@ -40,8 +28,6 @@ export async function rerankChunks(
   topK = 6
 ): Promise<RetrievedChunk[]> {
   if (chunks.length <= topK) return chunks; // zaten az → rerank gereksiz
-  const model = getGroqModel();
-  if (!model) return chunks.slice(0, topK); // graceful: rerank kapalı
 
   const list = chunks
     .map((c, i) => `[${i}] ${c.content.replace(/\s+/g, " ").slice(0, SNIPPET)}`)
@@ -54,11 +40,10 @@ Aşağıda numaralı aday metin parçaları var. Soruyu yanıtlamak için EN ALA
 ${list}`;
 
   try {
-    const { text } = await generateText({
-      model,
+    const { text } = await generateTextWithFallback({
+      prompt,
       temperature: 0,
       maxOutputTokens: 120,
-      prompt,
     });
 
     const order = (text.match(/\d+/g) ?? [])
