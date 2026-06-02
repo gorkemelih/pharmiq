@@ -12,7 +12,8 @@
     "db:migrate": "tsx lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "load:openfda": "tsx scripts/load-openfda.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.71",
