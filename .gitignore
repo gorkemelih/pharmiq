@@ -46,3 +46,6 @@ apps/web/storage/
 # Local cache
 .cache/
 .turbo/
+
+# Local learning log (CLAUDE.md workflow) — keep local, not in public repo
+docs/ogrenme.md
