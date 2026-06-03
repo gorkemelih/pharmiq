@@ -1,53 +1,28 @@
 {
-  "generatedAt": "2026-06-01T21:59:05.398Z",
+  "generatedAt": "2026-06-02T18:55:18.529Z",
+  "config": {
+    "rerankTopK": 6,
+    "corpus": "openFDA drug labels (15 docs, 139 chunks)",
+    "embed": "ollama/bge-m3 (1024-dim)",
+    "judge": "LLM-as-judge (Gemini 3 Flash / Groq Llama 3.3 70B)"
+  },
+  "note": "Clean run at rerank topK=6. Current code uses topK=4 (tuning to raise context_precision); a partial topK=4 run showed per-item ctxP rising to 0.80 on completed questions before free-tier daily quota was hit. Clean topK=4 re-measure pending quota reset.",
   "summary": {
-    "n": 6,
-    "faithfulness": 0.55,
+    "n": 10,
+    "faithfulness": 0.785,
     "answer_relevancy": 0.9,
-    "context_precision": 0.333
+    "context_precision": 0.36
   },
   "rows": [
-    {
-      "id": "q1",
-      "lang": "en",
-      "faithfulness": 0,
-      "answer_relevancy": 0.9,
-      "context_precision": 0.2
-    },
-    {
-      "id": "q2",
-      "lang": "en",
-      "faithfulness": 0.8,
-      "answer_relevancy": 0.9,
-      "context_precision": 0.2
-    },
-    {
-      "id": "q3",
-      "lang": "en",
-      "faithfulness": 0.9,
-      "answer_relevancy": 0.9,
-      "context_precision": 0.8
-    },
-    {
-      "id": "q4",
-      "lang": "en",
-      "faithfulness": 0.8,
-      "answer_relevancy": 0.9,
-      "context_precision": 0.4
-    },
-    {
-      "id": "q5",
-      "lang": "tr",
-      "faithfulness": 0.2,
-      "answer_relevancy": 0.9,
-      "context_precision": 0.2
-    },
-    {
-      "id": "q6",
-      "lang": "tr",
-      "faithfulness": 0.6,
-      "answer_relevancy": 0.9,
-      "context_precision": 0.2
-    }
+    { "id": "q1", "lang": "en", "faithfulness": 0.8, "answer_relevancy": 0.9, "context_precision": 0.2 },
+    { "id": "q2", "lang": "en", "faithfulness": 0.6, "answer_relevancy": 0.9, "context_precision": 0.4 },
+    { "id": "q3", "lang": "en", "faithfulness": 0.8, "answer_relevancy": 0.9, "context_precision": 0.2 },
+    { "id": "q4", "lang": "en", "faithfulness": 0.8, "answer_relevancy": 0.9, "context_precision": 0.4 },
+    { "id": "q5", "lang": "en", "faithfulness": 0.9, "answer_relevancy": 0.9, "context_precision": 0.2 },
+    { "id": "q6", "lang": "en", "faithfulness": 0.8, "answer_relevancy": 0.9, "context_precision": 0.2 },
+    { "id": "q7", "lang": "en", "faithfulness": 0.85, "answer_relevancy": 0.9, "context_precision": 0.8 },
+    { "id": "q8", "lang": "en", "faithfulness": 0.8, "answer_relevancy": 0.9, "context_precision": 0.2 },
+    { "id": "q9", "lang": "en", "faithfulness": 0.6, "answer_relevancy": 0.9, "context_precision": 0.8 },
+    { "id": "q10", "lang": "en", "faithfulness": 0.9, "answer_relevancy": 0.9, "context_precision": 0.2 }
   ]
 }
