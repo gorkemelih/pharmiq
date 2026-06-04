@@ -13,7 +13,10 @@ import {
   Brain,
   Search,
   Pencil,
+  FileText,
+  FlaskConical,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +31,7 @@ type OffLabelState = OffLabelInfo | "pending" | "skipped";
 export function ChatInterface() {
   const t = useTranslations("chat");
   const [input, setInput] = useState("");
+  const [mode, setMode] = useState<"documents" | "literature">("documents");
   const [activeCitation, setActiveCitation] = useState<number | null>(null);
   const [offLabelMap, setOffLabelMap] = useState<Record<string, OffLabelState>>(
     {}
@@ -99,16 +103,16 @@ export function ChatInterface() {
       e.preventDefault();
       const trimmed = input.trim();
       if (!trimmed || status === "streaming" || status === "submitted") return;
-      sendMessage({ text: trimmed });
+      sendMessage({ text: trimmed }, { body: { mode } });
       setInput("");
       setActiveCitation(null);
     },
-    [input, status, sendMessage]
+    [input, status, sendMessage, mode]
   );
 
   const onSampleClick = (q: string) => {
     if (status === "streaming" || status === "submitted") return;
-    sendMessage({ text: q });
+    sendMessage({ text: q }, { body: { mode } });
     setActiveCitation(null);
   };
 
@@ -205,6 +209,33 @@ export function ChatInterface() {
         {/* Input bar */}
         <div className="border-t bg-background">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-4 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground mr-1">Kaynak:</span>
+              <button
+                type="button"
+                onClick={() => setMode("documents")}
+                className={cn(
+                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md border transition-colors",
+                  mode === "documents"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:bg-secondary"
+                )}
+              >
+                <FileText className="h-3 w-3" /> Belgeler
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("literature")}
+                className={cn(
+                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md border transition-colors",
+                  mode === "literature"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:bg-secondary"
+                )}
+              >
+                <FlaskConical className="h-3 w-3" /> Literatür (PubMed)
+              </button>
+            </div>
             <form onSubmit={onSubmit} className="relative flex gap-2">
               <Input
                 value={input}
