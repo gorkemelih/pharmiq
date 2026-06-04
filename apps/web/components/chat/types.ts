@@ -14,6 +14,15 @@ export interface Citation {
   sectionPath: string | null;
   score: number;
   contentPreview: string;
+  /** "document" (yüklenen belge) | "paper" (canlı literatür) */
+  kind?: "document" | "paper";
+  // --- literatür (paper) alanları ---
+  url?: string;
+  pmid?: string;
+  doi?: string;
+  authors?: string;
+  journal?: string;
+  year?: string;
 }
 
 export interface MessageMetadata {

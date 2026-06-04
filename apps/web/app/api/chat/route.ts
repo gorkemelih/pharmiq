@@ -25,8 +25,10 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from "ai";
-import { retrieve } from "@/lib/rag/retrieval";
+import { retrieve, type RetrievedChunk } from "@/lib/rag/retrieval";
 import { rerankChunks } from "@/lib/rag/rerank";
+import { searchLiterature } from "@/lib/literature/service";
+import type { PaperCandidate } from "@/lib/literature/types";
 import { getProviderChain, streamWithProvider } from "@/lib/llm/chat";
 import { validateCitations } from "@/lib/llm/citations";
 import {
@@ -41,14 +43,16 @@ export const maxDuration = 60;
 
 interface ChatRequestBody {
   messages: UIMessage[];
-  /** Belirli dokümanlara kısıtla */
+  /** Belirli dokümanlara kısıtla (belge modu) */
   documentIds?: string[];
+  /** "documents" (yüklenen belgeler) | "literature" (canlı PubMed/Europe PMC) */
+  mode?: "documents" | "literature";
 }
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ChatRequestBody;
-    const { messages, documentIds } = body;
+    const { messages, documentIds, mode = "documents" } = body;
 
     if (!messages?.length) {
       return new Response(JSON.stringify({ error: "messages required" }), {
@@ -66,32 +70,56 @@ export async function POST(req: Request) {
     const query = extractText(lastUserMsg);
     const language = detectQueryLanguage(query);
 
-    // 1. Retrieval — geniş aday havuzu (RRF top-20)
-    const candidates = await retrieve(query, {
-      topK: 20,
-      documentIds,
-    });
-
-    // 0-chunk guard — kaynak yoksa modeli HİÇ çağırma (MLR: halüsinasyon imkânsız).
-    if (candidates.length === 0) {
-      return noSourcesResponse(language);
+    // 1. Kaynak adayları — moda göre (yüklenen belgeler VEYA canlı literatür)
+    let candidates: RetrievedChunk[];
+    let paperById: Map<string, PaperCandidate> | null = null;
+    if (mode === "literature") {
+      // Canlı literatür: PubMed/Europe PMC'den çek → chunk-benzeri nesnelere çevir
+      const papers = await searchLiterature(query, { limit: 20 });
+      paperById = new Map(papers.map((p) => [p.id, p]));
+      candidates = papers.map(paperToChunk);
+    } else {
+      // Belge modu: yüklenen belgelerde hybrid retrieval + RRF (top-20 aday)
+      candidates = await retrieve(query, { topK: 20, documentIds });
     }
 
-    // 2. Rerank — adayları alakaya göre yeniden sırala, en iyi 4 (Groq; yoksa RRF sırası)
-    // (4 seçildi: eval'de 6 → çok distractor → düşük context_precision; ölç→iyileştir.)
-    const chunks = await rerankChunks(query, candidates, 4);
+    // 0-kaynak guard — kaynak yoksa modeli HİÇ çağırma (halüsinasyon imkânsız).
+    if (candidates.length === 0) {
+      return noSourcesResponse(language, mode);
+    }
 
-    // 3. Citation metadata'sı: her chunk numaralı (UI chip + kaynak paneli için)
-    const citations = chunks.map((c, i) => ({
-      n: i + 1,
-      chunkId: c.chunkId,
-      documentId: c.documentId,
-      documentTitle: c.documentTitle,
-      pageNumber: c.pageNumber,
-      sectionPath: c.sectionPath,
-      score: c.score,
-      contentPreview: c.content.slice(0, 240),
-    }));
+    // 2. Rerank — adayları alakaya göre yeniden sırala (literatürde 6, belgede 4)
+    const topK = mode === "literature" ? 6 : 4;
+    const chunks = await rerankChunks(query, candidates, topK);
+
+    // 3. Citation metadata'sı — moda göre (literatürde PMID/DOI/dergi alanları)
+    const citations = chunks.map((c, i) => {
+      const base = {
+        n: i + 1,
+        chunkId: c.chunkId,
+        documentId: c.documentId,
+        documentTitle: c.documentTitle,
+        pageNumber: c.pageNumber,
+        sectionPath: c.sectionPath,
+        score: c.score,
+        contentPreview: c.content.slice(0, 240),
+      };
+      const paper = paperById?.get(c.chunkId);
+      if (paper) {
+        return {
+          ...base,
+          kind: "paper" as const,
+          contentPreview: paper.abstract.slice(0, 240),
+          url: paper.url,
+          pmid: paper.pmid,
+          doi: paper.doi,
+          authors: paper.authors,
+          journal: paper.journal,
+          year: paper.year,
+        };
+      }
+      return { ...base, kind: "document" as const };
+    });
 
     // 4. System + user prompt (kaynaklar gömülmüş)
     const systemPrompt = language === "tr" ? SYSTEM_PROMPT_TR : SYSTEM_PROMPT_EN;
@@ -187,11 +215,18 @@ export async function POST(req: Request) {
  * Retrieval 0 chunk döndürdüğünde: modeli çağırmadan sabit "kaynak yok" yanıtı stream'le.
  * createUIMessageStream ile UI message chunk'larını elle yazıyoruz (LLM yok = sıfır halüsinasyon).
  */
-function noSourcesResponse(language: "tr" | "en"): Response {
+function noSourcesResponse(
+  language: "tr" | "en",
+  mode: "documents" | "literature" = "documents"
+): Response {
   const message =
-    language === "tr"
-      ? "Bu konuda sağlanan kaynaklarda yeterli bilgi yok. Lütfen soruyu daha spesifik sorun ya da ilgili belgeyi kütüphaneye yükleyin."
-      : "The provided sources don't contain enough information on this topic. Please ask a more specific question or upload the relevant document.";
+    mode === "literature"
+      ? language === "tr"
+        ? "Bu soruyla ilgili literatürde (PubMed/Europe PMC) makale bulunamadı. Soruyu farklı ya da daha spesifik ifade edin."
+        : "No relevant literature (PubMed/Europe PMC) was found for this question. Try rephrasing or being more specific."
+      : language === "tr"
+        ? "Bu konuda sağlanan kaynaklarda yeterli bilgi yok. Lütfen soruyu daha spesifik sorun ya da ilgili belgeyi kütüphaneye yükleyin."
+        : "The provided sources don't contain enough information on this topic. Please ask a more specific question or upload the relevant document.";
 
   const stream = createUIMessageStream({
     execute: ({ writer }) => {
@@ -221,4 +256,21 @@ function extractText(msg: UIMessage): string {
     .filter((p): p is { type: "text"; text: string } => p.type === "text")
     .map((p) => p.text)
     .join("\n");
+}
+
+/** Literatür makalesini RAG pipeline'ının beklediği RetrievedChunk şekline çevir. */
+function paperToChunk(p: PaperCandidate): RetrievedChunk {
+  const sectionPath = [p.journal, p.year].filter(Boolean).join(" ");
+  return {
+    chunkId: p.id,
+    documentId: p.id,
+    documentTitle: p.title,
+    content: `${p.title}\n\n${p.abstract}`,
+    language: "en",
+    pageNumber: null,
+    paragraphIndex: null,
+    sectionPath: sectionPath || null,
+    score: 0,
+    sources: [],
+  };
 }

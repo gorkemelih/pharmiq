@@ -126,6 +126,9 @@ export function streamWithProvider(
     messages: opts.messages,
     temperature: 0.2,
     maxOutputTokens: 2048,
+    // Gemini 3 Flash "thinking"i bazen akışa sızıyor (öz-denetim metni) → kapat.
+    // Groq/openai-compatible için no-op (provider-namespaced option).
+    providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
   });
 }
 
