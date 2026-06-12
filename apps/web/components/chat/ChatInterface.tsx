@@ -15,6 +15,7 @@ import {
   Pencil,
   FileText,
   FlaskConical,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -31,7 +32,9 @@ type OffLabelState = OffLabelInfo | "pending" | "skipped";
 export function ChatInterface() {
   const t = useTranslations("chat");
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<"documents" | "literature">("documents");
+  const [mode, setMode] = useState<"documents" | "literature" | "synthesis">(
+    "documents"
+  );
   const [activeCitation, setActiveCitation] = useState<number | null>(null);
   const [offLabelMap, setOffLabelMap] = useState<Record<string, OffLabelState>>(
     {}
@@ -234,6 +237,19 @@ export function ChatInterface() {
                 )}
               >
                 <FlaskConical className="h-3 w-3" /> Literatür (PubMed)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("synthesis")}
+                title="Birden çok makaleyi PICO çıkarımı + konsensüs/çelişki/boşluk olarak sentezler"
+                className={cn(
+                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md border transition-colors",
+                  mode === "synthesis"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:bg-secondary"
+                )}
+              >
+                <Layers className="h-3 w-3" /> Sentez (Kanıt Özeti)
               </button>
             </div>
             <form onSubmit={onSubmit} className="relative flex gap-2">

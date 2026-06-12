@@ -115,10 +115,19 @@ export interface StreamChatOptions {
   system: string;
 }
 
-/** Tek bir provider ile stream başlat — route, failover döngüsünde çağırır. */
+/**
+ * Tek bir provider ile stream başlat — route, failover döngüsünde çağırır.
+ *
+ * ÖNEMLİ: Vercel AI SDK `streamText` hata olduğunda `textStream`'i FIRLATMAZ —
+ * hatayı `onError`'a yönlendirip stream'i boş bitirir. Bu yüzden failover'ın
+ * çalışması için hatayı `onError` ile yakalayıp çağırana geri veriyoruz; çağıran,
+ * stream boş + hata varsa sıradaki provider'a geçer (yoksa Gemini ölünce Groq'a
+ * hiç geçilmezdi).
+ */
 export function streamWithProvider(
   provider: ChatProvider,
-  opts: StreamChatOptions
+  opts: StreamChatOptions,
+  onError?: (error: unknown) => void
 ): ReturnType<typeof streamText> {
   return streamText({
     model: provider.model as LanguageModel,
@@ -126,6 +135,12 @@ export function streamWithProvider(
     messages: opts.messages,
     temperature: 0.2,
     maxOutputTokens: 2048,
+    // FAILOVER zinciri dayanıklılığı sağlıyor → provider başına RETRY YAPMA.
+    // (Aksi halde ölü/kotası dolu provider'da 3 deneme × backoff = latency ÇARPILIR.)
+    // maxRetries:0 → 1 deneme, hata verirse anında sıradaki provider'a geç.
+    maxRetries: 0,
+    // streamText hatayı throw etmez → buradan yakala (failover sinyali).
+    onError: onError ? ({ error }) => onError(error) : undefined,
     // Gemini 3 Flash "thinking"i bazen akışa sızıyor (öz-denetim metni) → kapat.
     // Groq/openai-compatible için no-op (provider-namespaced option).
     providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
@@ -157,6 +172,8 @@ export async function generateTextWithFallback(
         prompt: opts.prompt,
         temperature: opts.temperature ?? 0.2,
         maxOutputTokens: opts.maxOutputTokens ?? 1024,
+        // Zincir failover'ı yapıyor → provider başına retry yok (hızlı geçiş).
+        maxRetries: 0,
         providerOptions: opts.providerOptions,
       });
       return { text, provider: p.name };

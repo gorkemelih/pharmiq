@@ -90,6 +90,33 @@ export function SourcePanel({
                         {c.authors}
                       </p>
                     )}
+                    {/* Sentez modu: makaleden çıkarılan yapısal kanıt etiketleri */}
+                    {(c.studyType || c.sampleSize) && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {c.studyType && c.studyType !== "bilinmiyor" && (
+                          <span className="rounded bg-primary/10 px-1 py-px text-[9px] font-medium text-primary">
+                            {c.studyType}
+                          </span>
+                        )}
+                        {c.sampleSize && c.sampleSize !== "belirtilmemiş" && (
+                          <span className="rounded bg-secondary px-1 py-px text-[9px] text-muted-foreground">
+                            {c.sampleSize}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {c.qualityFlags && c.qualityFlags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {c.qualityFlags.slice(0, 3).map((flag) => (
+                          <span
+                            key={flag}
+                            className="rounded bg-amber-500/10 px-1 py-px text-[9px] text-amber-600 dark:text-amber-500"
+                          >
+                            ⚠ {flag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {c.url && (
                       <a
                         href={c.url}

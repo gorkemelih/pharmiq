@@ -29,6 +29,13 @@ import { retrieve, type RetrievedChunk } from "@/lib/rag/retrieval";
 import { rerankChunks } from "@/lib/rag/rerank";
 import { searchLiterature } from "@/lib/literature/service";
 import type { PaperCandidate } from "@/lib/literature/types";
+import {
+  extractEvidenceForPapers,
+  buildSynthesisUserPrompt,
+  SYNTHESIS_SYSTEM_PROMPT_TR,
+  SYNTHESIS_SYSTEM_PROMPT_EN,
+  type PaperEvidence,
+} from "@/lib/literature/synthesis";
 import { getProviderChain, streamWithProvider } from "@/lib/llm/chat";
 import { validateCitations } from "@/lib/llm/citations";
 import {
@@ -45,8 +52,12 @@ interface ChatRequestBody {
   messages: UIMessage[];
   /** Belirli dokümanlara kısıtla (belge modu) */
   documentIds?: string[];
-  /** "documents" (yüklenen belgeler) | "literature" (canlı PubMed/Europe PMC) */
-  mode?: "documents" | "literature";
+  /**
+   * "documents"   — yüklenen belgeler (hybrid retrieval)
+   * "literature"  — canlı PubMed/Europe PMC Q&A
+   * "synthesis"   — canlı literatür + PICO çıkarımı + çapraz-makale sentezi (Consensus/Elicit)
+   */
+  mode?: "documents" | "literature" | "synthesis";
 }
 
 export async function POST(req: Request) {
@@ -70,10 +81,13 @@ export async function POST(req: Request) {
     const query = extractText(lastUserMsg);
     const language = detectQueryLanguage(query);
 
+    // Sentez modu da canlı literatüre dayanır (belgeler değil)
+    const usesLiterature = mode === "literature" || mode === "synthesis";
+
     // 1. Kaynak adayları — moda göre (yüklenen belgeler VEYA canlı literatür)
     let candidates: RetrievedChunk[];
     let paperById: Map<string, PaperCandidate> | null = null;
-    if (mode === "literature") {
+    if (usesLiterature) {
       // Canlı literatür: PubMed/Europe PMC'den çek → chunk-benzeri nesnelere çevir
       const papers = await searchLiterature(query, { limit: 20 });
       paperById = new Map(papers.map((p) => [p.id, p]));
@@ -88,12 +102,14 @@ export async function POST(req: Request) {
       return noSourcesResponse(language, mode);
     }
 
-    // 2. Rerank — adayları alakaya göre yeniden sırala (literatürde 6, belgede 4)
-    const topK = mode === "literature" ? 6 : 4;
+    // 2. Rerank — adayları alakaya göre yeniden sırala.
+    // Sentez: 4 makale (her makale +1 PICO çağrısı → Groq 12K-token/dk burst limitine
+    // sığsın; literatür Q&A tek çağrı olduğu için 6). Belge modu: 4.
+    const topK = mode === "synthesis" ? 4 : usesLiterature ? 6 : 4;
     const chunks = await rerankChunks(query, candidates, topK);
 
     // 3. Citation metadata'sı — moda göre (literatürde PMID/DOI/dergi alanları)
-    const citations = chunks.map((c, i) => {
+    let citations = chunks.map((c, i) => {
       const base = {
         n: i + 1,
         chunkId: c.chunkId,
@@ -121,9 +137,46 @@ export async function POST(req: Request) {
       return { ...base, kind: "document" as const };
     });
 
-    // 4. System + user prompt (kaynaklar gömülmüş)
-    const systemPrompt = language === "tr" ? SYSTEM_PROMPT_TR : SYSTEM_PROMPT_EN;
-    const userPromptWithContext = buildUserPrompt(query, chunks, language);
+    // 4. System + user prompt (kaynaklar gömülmüş) — moda göre.
+    let systemPrompt: string;
+    let userPromptWithContext: string;
+
+    if (mode === "synthesis" && paperById) {
+      // SENTEZ: reranked makaleler → PICO çıkarımı (paralel) → çapraz-makale sentezi.
+      const rerankedPapers = chunks
+        .map((c) => paperById!.get(c.chunkId))
+        .filter((p): p is PaperCandidate => Boolean(p));
+      const evidences = await extractEvidenceForPapers(rerankedPapers);
+
+      // Yapısal kanıtı (çalışma tipi / örneklem / kalite) kaynak kartlarına işle.
+      const evidenceById = new Map<string, PaperEvidence>(
+        evidences.map((e) => [e.paperId, e])
+      );
+      citations = citations.map((c) => {
+        const e = evidenceById.get(c.chunkId);
+        return e
+          ? {
+              ...c,
+              studyType: e.studyType,
+              sampleSize: e.sampleSize,
+              qualityFlags: e.qualityFlags,
+              keyFinding: e.keyFinding,
+            }
+          : c;
+      });
+
+      systemPrompt =
+        language === "tr" ? SYNTHESIS_SYSTEM_PROMPT_TR : SYNTHESIS_SYSTEM_PROMPT_EN;
+      userPromptWithContext = buildSynthesisUserPrompt(
+        query,
+        rerankedPapers,
+        evidences,
+        language
+      );
+    } else {
+      systemPrompt = language === "tr" ? SYSTEM_PROMPT_TR : SYSTEM_PROMPT_EN;
+      userPromptWithContext = buildUserPrompt(query, chunks, language);
+    }
 
     // Önceki history korunur; son user mesajı context'li versiyonuyla değiştirilir.
     const augmentedMessages = messages.slice(0, -1).concat([
@@ -146,12 +199,19 @@ export async function POST(req: Request) {
 
         // FAILOVER: ilk provider'ı dene; token ÜRETMEDEN hata verirse sıradakine geç.
         // (Akış başladıktan sonra ortada provider değiştiremeyiz.)
+        // NOT: streamText hatayı throw ETMEZ → onError ile yakalanır (providerError).
+        // Stream boş bittiğinde providerError varsa fırlatıp catch'e düşürüyoruz ki
+        // failover sıradaki provider'a geçsin.
         for (const p of providers) {
+          let providerError: unknown = null;
           try {
-            const result = streamWithProvider(p, {
-              messages: modelMessages,
-              system: systemPrompt,
-            });
+            const result = streamWithProvider(
+              p,
+              { messages: modelMessages, system: systemPrompt },
+              (e) => {
+                providerError = e;
+              }
+            );
             for await (const delta of result.textStream) {
               if (!started) {
                 started = true;
@@ -171,7 +231,9 @@ export async function POST(req: Request) {
               fullText += delta;
               writer.write({ type: "text-delta", id, delta });
             }
-            break; // bu provider başarıyla tamamladı
+            // Stream throw etmeden boş bittiyse ama onError tetiklendiyse → başarısızlık.
+            if (!started && providerError) throw providerError;
+            break; // bu provider başarıyla tamamladı (token üretti)
           } catch (err) {
             if (started) throw err; // akış başladı → güvenli geçiş yok
             console.warn(
@@ -185,7 +247,10 @@ export async function POST(req: Request) {
 
         writer.write({ type: "text-end", id });
         // Tam metin elimizde → [^N] atıflarını chunk kümesine karşı doğrula
-        const citationValidation = validateCitations(fullText, chunks.length);
+        // (sentez modu: yapısal bölümler atıfsız → mod-farkında eşik)
+        const citationValidation = validateCitations(fullText, chunks.length, {
+          mode,
+        });
         writer.write({
           type: "finish",
           messageMetadata: {
@@ -217,10 +282,10 @@ export async function POST(req: Request) {
  */
 function noSourcesResponse(
   language: "tr" | "en",
-  mode: "documents" | "literature" = "documents"
+  mode: "documents" | "literature" | "synthesis" = "documents"
 ): Response {
   const message =
-    mode === "literature"
+    mode === "literature" || mode === "synthesis"
       ? language === "tr"
         ? "Bu soruyla ilgili literatürde (PubMed/Europe PMC) makale bulunamadı. Soruyu farklı ya da daha spesifik ifade edin."
         : "No relevant literature (PubMed/Europe PMC) was found for this question. Try rephrasing or being more specific."

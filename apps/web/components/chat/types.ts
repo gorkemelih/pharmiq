@@ -23,6 +23,15 @@ export interface Citation {
   authors?: string;
   journal?: string;
   year?: string;
+  // --- sentez modu: makaleden çıkarılan yapısal kanıt (PICO) ---
+  /** RCT | meta-analiz | kohort... */
+  studyType?: string;
+  /** "n=4203" | "belirtilmemiş" */
+  sampleSize?: string;
+  /** ["küçük örneklem", "preprint"...] */
+  qualityFlags?: string[];
+  /** tek cümlelik ana bulgu */
+  keyFinding?: string;
 }
 
 export interface MessageMetadata {

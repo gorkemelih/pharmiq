@@ -24,7 +24,17 @@ In pharma, an answer that *sounds* right but isn't traceable to an approved sour
 - **Off-label detection** — flags answers that may require MLR approval.
 - **Multi-provider failover** — Gemini → Groq → GitHub Models; if one provider hits a quota/error, generation automatically continues on the next.
 - **RAGAS-style evaluation** — faithfulness, answer relevancy, context precision via an LLM judge, against a golden question set.
+- **Live literature search** — query PubMed/MEDLINE in real time via the Europe PMC REST API; answers cite real papers (PMID/DOI), not just the local corpus.
+- **Evidence synthesis (Consensus/Elicit-style)** — for a clinical question, PharmIQ extracts structured **PICO** evidence per paper (study type, sample size, key finding, quality flags), then synthesizes across papers into **consensus level · key findings · contradictions · evidence gaps · safety notes**, every claim `[^N]`-cited.
 - **Bilingual** — Turkish + English (next-intl), language-aware prompts and retrieval.
+
+### Three answering modes
+
+| Mode | Source | Output |
+|---|---|---|
+| **Documents** | Uploaded labels (hybrid retrieval over the local corpus) | Grounded Q&A with validated citations |
+| **Literature** | Live PubMed / Europe PMC | Q&A grounded in real papers (PMID/DOI) |
+| **Synthesis** | Live PubMed → per-paper PICO extraction → cross-paper synthesis | Evidence review: consensus / contradictions / gaps |
 
 ## Architecture
 
@@ -55,6 +65,17 @@ flowchart LR
   P --> G[LLM generation - failover: Gemini to Groq]
   G --> CV[Citation validation + off-label check]
   CV --> UI[Streamed answer + sources + badge]
+```
+
+**Synthesis pipeline** (literature mode → evidence review)
+
+```mermaid
+flowchart LR
+  Q[Clinical question] --> S[Search PubMed / Europe PMC]
+  S --> RR[LLM re-rank, top-6 papers]
+  RR --> EX[Per-paper PICO extraction - parallel, structured JSON]
+  EX --> SY[Cross-paper synthesis - one LLM call]
+  SY --> OUT[Consensus · Findings · Contradictions · Gaps · Safety, each cited]
 ```
 
 ## Evaluation
@@ -127,6 +148,8 @@ pnpm eval         # -> apps/web/eval/results.json
 
 ## Roadmap / production upgrades
 
+- **Evidence comparison table** — render the per-paper PICO already extracted in synthesis mode as a sortable matrix (study type · sample size · key finding · quality), à la Elicit.
+- **Exportable evidence report** — one-click PDF/DOCX of a synthesis (summary · consensus · findings · contradictions · references) for Medical Affairs hand-off.
 - Clean topK=4 re-measure; expand the corpus and golden set; publish the eval set as a Hugging Face dataset.
 - Cross-encoder / fine-tuned reranker; Cohere/managed embeddings for hosted deployment.
 - Deploy (Vercel + managed Postgres + hosted embedding); request/trace monitoring; CI eval gate.
